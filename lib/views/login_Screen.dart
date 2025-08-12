@@ -1,164 +1,144 @@
 import 'package:flutter/material.dart';
 import '../helpers/Colors.dart';
-class LoginScreen extends StatelessWidget {
+import '../controllers/auth_Controller.dart';
+import '../helpers/snackbar.dart';
+import '../views/home_Screen.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
+
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _obscurePassword = true; // Add this line
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Large oval, strong gradient, image centered on visible part
-          Positioned(
-            top: -950,
-            right: -450,
-            child: ClipOval(
-              child: Container(
-                width: 1500,
-                height: 1500,
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 40,
-                      spreadRadius: 10,
-                      offset: Offset(0, 30),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    // Linear gradient background
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Appcolors.primaryColor.withOpacity(1),
-                            Appcolors.primaryColor.withOpacity(1),
-                            Appcolors.primaryColor.withOpacity(1),
-                          ],
-                          stops: const [0.0, 0.9, 1.0],
-                        ),
+      body: SingleChildScrollView(
+        child: Stack(
+          children: [
+            // Large oval, strong gradient, image centered on visible part
+            Positioned(
+              top: -400, // was -950
+              right: -200, // was -450
+              child: ClipOval(
+                child: Container(
+                  width: 900, // was 1500
+                  height: 900, // was 1500
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 40,
+                        spreadRadius: 10,
+                        offset: Offset(0, 30),
                       ),
-                    ),
-                    // Radial gradient overlay
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(
-                          center: const Alignment(-1.0, 1.0), // bottom-left corner
-                          radius: 1.2,
-                          colors: [
-                            Colors.white.withOpacity(1),
-                            Colors.white.withOpacity(0), // fade out to transparent
-                          ],
-                          stops: const [0.0, 1.0],
-                        ),
-                      ),
-                    ),
-                    // Decorative white circles above the image
-                    Positioned(
-                      top: 320,
-                      right: 650,
-                      child: Container(
-                        width: 48,
-                        height: 48,
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      // Linear gradient background (more prominent, dark to white)
+        
+                      Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.8),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 12,
-                              spreadRadius: 2,
-                            ),
-                          ],
+                          gradient: LinearGradient(
+                            begin: Alignment.topRight,
+                            end: Alignment.bottomLeft,
+                            colors: [
+                              Appcolors.primaryColor.withOpacity(1), // dark start
+                              Appcolors.primaryColor.withOpacity(0.8),
+                              Colors.white, // bright end
+                            ],
+                            stops: const [0.0, 0.5, 1.0],
+                          ),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      top: 350,
-                      right: 600,
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.7),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 10,
-                              spreadRadius: 1,
-                            ),
-                          ],
+        
+                      // Center the image on the visible oval part
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: Padding(
+                          // Adjust padding to center image on visible oval part
+                          padding: const EdgeInsets.only(right: 240, bottom: 40), // was right: 500, bottom: 100
+                          child: Image.asset(
+                            'assets/images/mainscreen_image.png',
+                            width: 350, // was 310
+                            height: 350, // was 290
+                           // fit: BoxFit.cover,
+                          ),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      top: 390,
-                      right: 670,
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.6),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 8,
-                              spreadRadius: 1,
-                            ),
-                          ],
+        
+                      Positioned(
+                        top: 530,
+                        left: 400,
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.7),
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      top: 370,
-                      right: 720,
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.7),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 10,
-                              spreadRadius: 1,
-                            ),
-                          ],
+        
+                      Positioned(
+                        top: 500,
+                        left: 600,
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.7),
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
-                    ),
-                    // Center the image on the visible oval part
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: Padding(
-                        // Adjust padding to center image on visible oval part
-                        padding: const EdgeInsets.only(right: 500, bottom: 100),
-                        child: Image.asset(
-                          'assets/images/mainscreen_image.png',
-                          width: 310,
-                          height: 290,
-                          fit: BoxFit.cover,
+        
+                      Positioned(
+                        top: 650,
+                        left: 670,
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.7),
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+        
+                      Positioned(
+                        top: 700,
+                        left: 300,
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.7),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-
-          // Move the fields to the bottom of the oval
-          SingleChildScrollView(
-            child: Column(
+        
+            // Move the fields to the bottom of the oval
+        
+            Column(
               children: [
-                const SizedBox(height: 580), // Adjust this to match the oval's bottom
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.62,
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Column(
@@ -172,25 +152,106 @@ class LoginScreen extends StatelessWidget {
                       ),
                       SizedBox(height: 24,),
                       TextField(
+                        controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Enter Email',
+                        decoration: InputDecoration(
+                          labelText: 'Email',
                           hintText: 'e.g. user@example.com',
-                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.email_outlined),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.9),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide(),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide(color: Appcolors.primaryColor, width: 2),
+                          ),
+                          labelStyle: TextStyle(color: Colors.black54),
+                          hintStyle: TextStyle(color: Colors.grey),
                         ),
                       ),
                       const SizedBox(height: 15),
+        
                       TextField(
+                        controller: _passwordController,
                         keyboardType: TextInputType.text,
-                        decoration: const InputDecoration(
-                          labelText: 'Enter password',
-                          border: OutlineInputBorder(),
+                        obscureText: _obscurePassword, // Use state variable
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          hintText: 'Enter your password',
+                          prefixIcon: Icon(Icons.lock_outline),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.9),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide(),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide(color: Appcolors.primaryColor, width: 2),
+                          ),
+                          labelStyle: TextStyle(color: Colors.black54),
+                          hintStyle: TextStyle(color: Colors.grey),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
                         ),
                       ),
+        
                       SizedBox(height: 24,),
+        
                       ElevatedButton(
-                        onPressed: () {
-                          // Handle login/signup
+                        onPressed: () async {
+                          final email = _emailController.text.trim();
+                          final password = _passwordController.text;
+
+                          // Email validation
+                          final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                          if (email.isEmpty || password.isEmpty) {
+                            showErrorSnackbar(context, 'Please enter both email and password');
+                            return;
+                          }
+                          if (!emailRegex.hasMatch(email)) {
+                            showErrorSnackbar(context, 'Please enter a valid email address');
+                            return;
+                          }
+                          if (password.length < 8) {
+                            showErrorSnackbar(context, 'Password must be at least 8 characters');
+                            return;
+                          }
+
+                          EasyLoading.show(status: 'Logging in...');
+                          final loginSuccess = await AuthController.login(
+                            email: email,
+                            password: password,
+                            context: context,
+                          );
+                          EasyLoading.dismiss();
+
+                          if (loginSuccess == true) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => HomeScreen()),
+                            );
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Appcolors.primaryColor.withOpacity(1),
@@ -203,8 +264,9 @@ class LoginScreen extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ],
+        
+          ],
+        ),
       ),
     );
   }

@@ -140,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Column(
                   children: [
                     SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.62,
+                      height: MediaQuery.of(context).size.height * 0.61,
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -153,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          SizedBox(height: 24,),
+                          SizedBox(height: 21,),
                           TextField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
@@ -179,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               hintStyle: TextStyle(color: Colors.grey),
                             ),
                           ),
-                          const SizedBox(height: 15),
+                          const SizedBox(height: 12),
 
                           TextField(
                             controller: _passwordController,
@@ -219,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
 
-                          SizedBox(height: 16,),
+                          SizedBox(height: 1,),
 
                           // Move "Forgot Password?" to the right and make it a button
                           Row(
@@ -245,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                           ),
-                          SizedBox(height: 16,),
+                          SizedBox(height: 1,),
 
                           ElevatedButton(
                             onPressed: () async {

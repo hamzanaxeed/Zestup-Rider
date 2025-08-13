@@ -102,11 +102,22 @@ class ApiCall {
         body: jsonEncode(body),
       ).timeout(const Duration(seconds: 20));
 
-      print("[PUT] Request Body: ${jsonEncode(body)}");
       print("[PUT] Response Headers: ${response.headers}");
       print("[PUT] Response Body: ${response.body}");
       print("[PUT] Status: ${response.statusCode}");
-      final jsonResponse = jsonDecode(response.body);
+
+      dynamic jsonResponse;
+      try {
+        if (response.body.isEmpty) {
+          // Handle empty body (like 204 No Content)
+          jsonResponse = null;
+        } else {
+          jsonResponse = jsonDecode(response.body);
+        }
+      } catch (e) {
+        print("[PUT] JSON Decode Error: $e");
+        jsonResponse = response.body; // keep raw text if not valid JSON
+      }
 
       return {
         'statusCode': response.statusCode,

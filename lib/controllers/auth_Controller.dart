@@ -155,8 +155,8 @@ class AuthController {
     );
     print('[SET PASSWORD] Response: $response');
 
-    if (response['statusCode'] == 200) {
-      showSuccessSnackbar(context, 'Password set successfully');
+    if (response['statusCode'] == 204) {
+      showSuccessSnackbar(context, 'Password reseted successfully');
       return true;
     } else {
       String msg = response['body']?['error']?.toString() ?? 'Failed to set password';

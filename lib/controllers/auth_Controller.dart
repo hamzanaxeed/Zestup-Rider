@@ -19,16 +19,16 @@ class AuthController {
     final response = await ApiCall.callApiPost(
       body,
       "/auth/rider/login",
+      context: context,
     );
     print('[LOGIN] Response: $response');
-    print('[LOGIN] Full Response: $response');
 
-    final data = response['data'];
+    final data = response['body'];
 
     if (data != null) {
       print('[LOGIN] Error: ${data['error']}');
-      print('[LOGIN] Message: ${response['message']}');
-      print('[LOGIN] Success: ${response['success']}');
+      print('[LOGIN] Message: ${data['message']}');
+      print('[LOGIN] Success: ${data['success']}');
 
       final userData = data['data']?['user'];
       if (userData != null) {
@@ -44,7 +44,7 @@ class AuthController {
     }
 
     if (response['statusCode'] == 200) {
-      final data = response['data'];
+      final data = response['body']['data'];
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('accessToken', data['accessToken'] ?? '');
       await prefs.setString('refreshToken', data['refreshToken'] ?? '');
@@ -58,30 +58,26 @@ class AuthController {
         await prefs.setString('LastName', userData['lastName'] ?? '');
         await prefs.setString('Phone', userData['phone'] ?? '');
         await prefs.setString('userId', userData['roleId'] ?? '');
-        // Store permissions as JSON string
-
-
         if (userData['permissions'] != null) {
           await prefs.setString('userPermissions', userData['permissions'].toString());
         }
       }
 
-      // Success: return true after showing snackbar
-      showSuccessSnackbar(context, 'Login successful');
+      showSuccessSnackbar(context, response['body']['message']?.toString() ?? 'Login successful');
       return true;
     } else {
       String? errorMsg;
-      if (response['data'] != null && response['data']['error'] != null) {
-        errorMsg = response['data']['error'].toString();
-      }else if (response['message'] != null) {
-        errorMsg = response['message'].toString();
+      if (response['body'] != null && response['body']['error'] != null) {
+        errorMsg = response['body']['error'].toString();
+      } else if (response['body'] != null && response['body']['message'] != null) {
+        errorMsg = response['body']['message'].toString();
       } else {
         errorMsg = 'Login failed. Please try again.';
       }
       print('[LOGIN] Error Message: $errorMsg');
       showErrorSnackbar(context, errorMsg);
       return false;
-    }//
+    }
   }
  /////////////////////////////////////////////////////////////////////////////////////////////////////////
   static Future<bool> sendPasswordResetOTP({
@@ -133,6 +129,37 @@ class AuthController {
       return true;
     } else {
       String msg = response['body']?['error']?.toString() ?? 'OTP verification failed';
+      showErrorSnackbar(context, msg);
+      return false;
+    }
+  }
+
+  static Future<bool> setPassword({
+    required String password,
+    required BuildContext context,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final resetToken = prefs.getString('resetToken') ?? '';
+    if (resetToken.isEmpty) {
+      showErrorSnackbar(context, 'Reset token not found. Please try again.');
+      return false;
+    }
+    final body = {
+      "resetToken": resetToken,
+      "password": password,
+    };
+    final response = await ApiCall.callApiPut(
+      body,
+      "/auth/rider/password/reset",
+      context: context,
+    );
+    print('[SET PASSWORD] Response: $response');
+
+    if (response['statusCode'] == 200) {
+      showSuccessSnackbar(context, 'Password set successfully');
+      return true;
+    } else {
+      String msg = response['body']?['error']?.toString() ?? 'Failed to set password';
       showErrorSnackbar(context, msg);
       return false;
     }

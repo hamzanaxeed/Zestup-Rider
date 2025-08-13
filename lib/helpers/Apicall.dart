@@ -95,12 +95,16 @@ class ApiCall {
         }
       }
 
+      print("[PUT] Request Body: ${jsonEncode(body)}");
       final response = await http.put(
         Uri.parse(baseUrl),
         headers: headers,
         body: jsonEncode(body),
       ).timeout(const Duration(seconds: 20));
 
+      print("[PUT] Request Body: ${jsonEncode(body)}");
+      print("[PUT] Response Headers: ${response.headers}");
+      print("[PUT] Response Body: ${response.body}");
       print("[PUT] Status: ${response.statusCode}");
       final jsonResponse = jsonDecode(response.body);
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../helpers/Colors.dart';
-import '../controllers/auth_Controller.dart';
-import '../helpers/snackbar.dart';
-import '../views/home_Screen.dart';
+import '../../helpers/Colors.dart';
+import '../../controllers/auth_Controller.dart';
+import '../../helpers/snackbar.dart';
+import '../home_Screen.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -216,7 +216,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
         
-                      SizedBox(height: 24,),
+                      SizedBox(height: 16,),
+
+                      Text('Forgot Password?',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(height: 16,),
         
                       ElevatedButton(
                         onPressed: () async {

@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'snackbar.dart';
 
 const String BASEURL = "https://zestupbackend-59oze.sevalla.app/api";
 
@@ -9,7 +12,7 @@ class ApiCall {
   static Future<Map<String, dynamic>> callApiPost(
     Map<String, dynamic> body,
     String endpoint,
-    {bool withAuth = false, String type = 'invalid'}
+    {bool withAuth = false, String type = 'invalid', BuildContext? context}
   ) async {
     final baseUrl = "$BASEURL$endpoint";
     print("[POST] $baseUrl");
@@ -30,28 +33,39 @@ class ApiCall {
         }
       }
 
+      print("[POST] Request Body: ${jsonEncode(body)}");
       final response = await http.post(
         Uri.parse(baseUrl),
         headers: headers,
         body: jsonEncode(body),
       ).timeout(const Duration(seconds: 20));
 
+      print("[POST] Response Headers: ${response.headers}");
+      print("[POST] Response Body: ${response.body}");
       print("[POST] Status: ${response.statusCode}");
-      final jsonResponse = jsonDecode(response.body);
+     final jsonResponse = jsonDecode(response.body);
 
+      //final jsonResponse = 'a' ;//= json.decode(response.body);
+      print("[POST] Response Body: $jsonResponse");
       return {
+
         'statusCode': response.statusCode,
-        'success': response.statusCode == 200 || response.statusCode == 201,
-        'data': jsonResponse,
+        'body': jsonResponse,
+      };
+
+    } on TimeoutException catch (_) {
+      if (context != null) {
+        showErrorSnackbar(context, 'Check your internet connection and tryagain');
+      }
+      return {
+        'statusCode': 408,
+        'body': {'message': 'Check your internet connection and tryagain'},
       };
     } catch (e) {
       print("[POST] Error: $e");
       return {
         'statusCode': 500,
-        'success': false,
-        'error': true,
-        'message': 'Network error or invalid response',
-        'exception': e.toString(),
+        'body': {'message': 'Network error or invalid response', 'exception': e.toString()},
       };
     }
   }
@@ -60,7 +74,7 @@ class ApiCall {
   static Future<Map<String, dynamic>> callApiPut(
     Map<String, dynamic> body,
     String endpoint,
-    {bool withAuth = false}
+    {bool withAuth = false, BuildContext? context}
   ) async {
     final baseUrl = "$BASEURL$endpoint";
     print("[PUT] $baseUrl");
@@ -92,17 +106,21 @@ class ApiCall {
 
       return {
         'statusCode': response.statusCode,
-        'success': response.statusCode == 200,
-        'data': jsonResponse,
+        'body': jsonResponse,
+      };
+    } on TimeoutException catch (_) {
+      if (context != null) {
+        showErrorSnackbar(context, 'Check your internet connection and tryagain');
+      }
+      return {
+        'statusCode': 408,
+        'body': {'message': 'Check your internet connection and tryagain'},
       };
     } catch (e) {
       print("[PUT] Error: $e");
       return {
         'statusCode': 500,
-        'success': false,
-        'error': true,
-        'message': 'Network error or invalid response',
-        'exception': e.toString(),
+        'body': {'message': 'Network error or invalid response', 'exception': e.toString()},
       };
     }
   }
@@ -110,7 +128,7 @@ class ApiCall {
   // GET
   static Future<Map<String, dynamic>> callApiGet(
     String endpoint,
-    {bool withAuth = false}
+    {bool withAuth = false, BuildContext? context}
   ) async {
     final baseUrl = "$BASEURL$endpoint";
     print("[GET] $baseUrl");
@@ -141,17 +159,21 @@ class ApiCall {
 
       return {
         'statusCode': response.statusCode,
-        'success': response.statusCode == 200,
-        'data': jsonResponse,
+        'body': jsonResponse,
+      };
+    } on TimeoutException catch (_) {
+      if (context != null) {
+        showErrorSnackbar(context, 'Check your internet connection and tryagain');
+      }
+      return {
+        'statusCode': 408,
+        'body': {'message': 'Check your internet connection and tryagain'},
       };
     } catch (e) {
       print("[GET] Error: $e");
       return {
         'statusCode': 500,
-        'success': false,
-        'error': true,
-        'message': 'Network error or invalid response',
-        'exception': e.toString(),
+        'body': {'message': 'Network error or invalid response', 'exception': e.toString()},
       };
     }
   }
@@ -159,7 +181,7 @@ class ApiCall {
   // DELETE
   static Future<Map<String, dynamic>> callApiDelete(
     String endpoint,
-    {bool withAuth = false, Map<String, dynamic>? body}
+    {bool withAuth = false, Map<String, dynamic>? body, BuildContext? context}
   ) async {
     final baseUrl = "$BASEURL$endpoint";
     print("[DELETE] $baseUrl");
@@ -199,19 +221,22 @@ class ApiCall {
 
       return {
         'statusCode': response.statusCode,
-        'success': response.statusCode == 200 || response.statusCode == 204,
-        'data': jsonResponse,
+        'body': jsonResponse,
+      };
+    } on TimeoutException catch (_) {
+      if (context != null) {
+        showErrorSnackbar(context, 'Check your internet connection and tryagain');
+      }
+      return {
+        'statusCode': 408,
+        'body': {'message': 'Check your internet connection and tryagain'},
       };
     } catch (e) {
       print("[DELETE] Error: $e");
       return {
         'statusCode': 500,
-        'success': false,
-        'error': true,
-        'message': 'Network error or invalid response',
-        'exception': e.toString(),
+        'body': {'message': 'Network error or invalid response', 'exception': e.toString()},
       };
     }
   }
 }
-

@@ -4,6 +4,7 @@ import '../../controllers/auth_Controller.dart';
 import '../../helpers/snackbar.dart';
 import '../home_Screen.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'forget_Password_EmailScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -218,12 +219,29 @@ class _LoginScreenState extends State<LoginScreen> {
         
                       SizedBox(height: 16,),
 
-                      Text('Forgot Password?',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      // Move "Forgot Password?" to the right and make it a button
+                      Row(
+                        children: [
+                          Spacer(),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ForgetPasswordEmailScreen(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              'Forgot Password?',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       SizedBox(height: 16,),
         

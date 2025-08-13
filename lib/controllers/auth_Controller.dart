@@ -83,4 +83,59 @@ class AuthController {
       return false;
     }//
   }
+ /////////////////////////////////////////////////////////////////////////////////////////////////////////
+  static Future<bool> sendPasswordResetOTP({
+    required String email,
+    required BuildContext context,
+  }) async {
+    final body = {
+      "email": email,
+    };
+    final response = await ApiCall.callApiPost(
+      body,
+      "/auth/rider/password/forgot",
+    );
+    print('[FORGET PASSWORD] Response: $response');
+
+    if (response['statusCode'] == 200) {
+      showSuccessSnackbar(context, 'OTP sent successfully');
+      return true;
+    } else {
+      String msg = response['body']?['error']?.toString() ?? 'Failed to send OTP';
+      showErrorSnackbar(context, msg);
+      return false;
+    }
+  }
+  /////////////////////////////////////////////////////////
+  static Future<bool> verifyOTP({
+    required String email,
+    required String code,
+    required BuildContext context,
+  }) async {
+    final body = {
+      "email": email,
+      "code": code,
+    };
+    final response = await ApiCall.callApiPost(
+      body,
+      "/auth/password/verify-otp",
+      context: context,
+    );
+    print('[VERIFY OTP] Response: $response');
+
+    if (response['statusCode'] == 200) {
+      final resetToken = response['body']?['data']?['resetToken'];
+      if (resetToken != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('resetToken', resetToken);
+      }
+      showSuccessSnackbar(context, 'OTP Verified');
+      return true;
+    } else {
+      String msg = response['body']?['error']?.toString() ?? 'OTP verification failed';
+      showErrorSnackbar(context, msg);
+      return false;
+    }
+  }
+
 }

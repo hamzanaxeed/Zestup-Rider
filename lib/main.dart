@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'views/Authentication_Screen/login_Screen.dart';
+import 'views/Authentication/login_Screen.dart';
 import 'views/home_Screen.dart';
 
 void main() {

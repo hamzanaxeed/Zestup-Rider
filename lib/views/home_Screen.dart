@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:rider/helpers/Colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../views/Authentication_Screen/login_Screen.dart';
+import '../views/Authentication/login_Screen.dart';
+import '../controllers/order_Controller.dart';
+import 'package:provider/provider.dart';
+import '../Models/order_Model.dart';
+import 'orders/orders_Screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int selectedTab = 0; // 0: Pending, 1: Completed
+
   void _showRoundedBottomSheet(BuildContext context) {
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true, // Make sheet cover full bottom
@@ -55,65 +67,294 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Appcolors.backgroundColor,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70),
-        child: AppBar(
-          backgroundColor: Appcolors.appBarColor,
-          centerTitle: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(
-              bottom: Radius.circular(24),
-            ),
-          ),
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.shopping_bag_outlined, size: 28),
-              SizedBox(width: 8),
-              Text('Orders', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 26)),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Logout',
-              onPressed: () => _logout(context),
-            ),
-          ],
-        ),
-      ),
-      body: Stack(
-        children: [
-          const Center(
-            child: Text(
-              'Welcome to Home Screen!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 24,
-            child: Center(
-              child: ElevatedButton(
-                onPressed: () => _showRoundedBottomSheet(context),
-                style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  backgroundColor: Appcolors.primaryColor,
-                ),
-                child: const Text(
-                  'Show Bottom Sheet',
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
+    final theme = Theme.of(context);
+    return ChangeNotifierProvider(
+      create: (_) => OrderController()..fetchOrders(context: context),
+      child: Scaffold(
+        backgroundColor: Appcolors.backgroundColor,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(70),
+          child: AppBar(
+            backgroundColor: Appcolors.appBarColor,
+            centerTitle: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(
+                bottom: Radius.circular(24),
               ),
             ),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.shopping_bag_outlined, size: 28),
+                SizedBox(width: 8),
+                Text('Orders', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 26)),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout),
+                tooltip: 'Logout',
+                onPressed: () => _logout(context),
+              ),
+            ],
           ),
-        ],
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFF8FAFF), Color(0xFFE8F0FE)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 18),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: selectedTab == 0 ? Appcolors.primaryColor : Colors.white,
+                          foregroundColor: selectedTab == 0 ? Colors.white : Appcolors.primaryColor,
+                          elevation: selectedTab == 0 ? 2 : 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: Appcolors.primaryColor,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            selectedTab = 0;
+                          });
+                        },
+                        child: const Text('Pending', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: selectedTab == 1 ? Appcolors.primaryColor : Colors.white,
+                          foregroundColor: selectedTab == 1 ? Colors.white : Appcolors.primaryColor,
+                          elevation: selectedTab == 1 ? 2 : 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: Appcolors.primaryColor,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            selectedTab = 1;
+                          });
+                        },
+                        child: const Text('Completed', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: Consumer<OrderController>(
+                  builder: (context, orderController, _) {
+                    if (orderController.loading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (orderController.errorMessage != null) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.error_outline, color: Colors.red, size: 48),
+                              const SizedBox(height: 16),
+                              Text(
+                                orderController.errorMessage!,
+                                style: const TextStyle(fontSize: 18, color: Colors.red, fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    // Filter orders based on selectedTab
+                    List<Order> filteredOrders;
+                    if (selectedTab == 1) {
+                      filteredOrders = orderController.orders
+                          .where((o) => o.status?.toLowerCase() == 'delivered' || o.status?.toLowerCase() == 'completed')
+                          .toList();
+                    } else {
+                      filteredOrders = orderController.orders
+                          .where((o) => o.status?.toLowerCase() != 'delivered' && o.status?.toLowerCase() != 'completed')
+                          .toList();
+                    }
+                    if (filteredOrders.isEmpty) {
+                      return Center(
+                        child: Text(
+                          selectedTab == 1 ? 'No completed orders.' : 'No pending orders.',
+                          style: theme.textTheme.titleMedium?.copyWith(color: Colors.grey),
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemCount: filteredOrders.length,
+                      itemBuilder: (context, index) {
+                        final order = filteredOrders[index];
+                        return Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => OrderDetailScreen(order: order),
+                                ),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 28,
+                                    backgroundColor: order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
+                                        ? Colors.green[100]
+                                        : Colors.orange[100],
+                                    child: Icon(
+                                      order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
+                                          ? Icons.check_circle_outline
+                                          : Icons.timelapse,
+                                      color: order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
+                                          ? Colors.green
+                                          : Colors.orange,
+                                      size: 32,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  // Use Expanded here to avoid overflow
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Order #${order.displayId ?? ''}',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                            const Icon(Icons.location_on, size: 16, color: Colors.blueGrey),
+                                            const SizedBox(width: 4),
+                                            // Use Flexible to avoid overflow
+                                            Flexible(
+                                              child: Text(
+                                                order.deliveryAddress ?? '',
+                                                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                            const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                                            const SizedBox(width: 4),
+                                            Flexible(
+                                              child: Text(
+                                                order.createdAt?.substring(0, 16) ?? '',
+                                                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Use Flexible for trailing column to avoid overflow
+                                  Flexible(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          order.status ?? '',
+                                          style: TextStyle(
+                                            color: order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
+                                                ? Colors.green
+                                                : Colors.orange,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue[50],
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            'Rs. ${order.total ?? ''}',
+                                            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blue),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        );
+
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        // floatingActionButton: Builder(
+        //   builder: (context) => ElevatedButton(
+        //     onPressed: () => _showRoundedBottomSheet(context),
+        //     style: ElevatedButton.styleFrom(
+        //       shape: RoundedRectangleBorder(
+        //         borderRadius: BorderRadius.circular(24),
+        //       ),
+        //       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        //       backgroundColor: Appcolors.primaryColor,
+        //     ),
+        //     child: const Text(
+        //       'Show Bottom Sheet',
+        //       style: TextStyle(fontSize: 18, color: Colors.white),
+        //     ),
+        //   ),
+        // ),
+        // floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       ),
     );
   }

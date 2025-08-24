@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../Models/order_Model.dart';
 import '../Tracking/order_Tracking_Map.dart';
+import '../Tracking/websockets.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   final Order order;
@@ -71,6 +72,7 @@ class OrderDetailScreen extends StatelessWidget {
                         Text(order.type ?? '', style: theme.textTheme.bodyMedium),
                       ],
                     ),
+
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -178,11 +180,17 @@ class OrderDetailScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
+                        // Initialize socket connection with JWT token in handshake
+                        final socket = await initializeSocket();
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const OrderTrackingScreen(),
+                            builder: (_) => OrderTrackingScreen(
+                              orderId: order.id ?? '',
+                              socket: socket,
+                            ),
                           ),
                         );
                       },

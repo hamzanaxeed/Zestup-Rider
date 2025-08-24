@@ -2,13 +2,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'websockets.dart';
 
 class CustomGoogleMap extends StatefulWidget {
   final MapType initialMapType;
+  final String orderId;
+  final IO.Socket socket;
 
   const CustomGoogleMap({
     Key? key,
     this.initialMapType = MapType.normal,
+    required this.orderId,
+    required this.socket,
   }) : super(key: key);
 
   @override
@@ -24,11 +30,44 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
   LatLng? _currentLatLng;
   CameraPosition? _initialCamera;
 
+  Timer? _locationTimer;
+  bool _trackingActive = true;
+
   @override
   void initState() {
     super.initState();
     _mapType = widget.initialMapType;
     _setCurrentLocationMarkerAndCamera();
+    _startDeliveryTracking();
+  }
+
+  void _startDeliveryTracking() {
+    startDeliveryTracking(widget.socket, widget.orderId);
+    _startLocationUpdates();
+  }
+
+  void _startLocationUpdates() {
+    _locationTimer?.cancel();
+    _locationTimer = Timer.periodic(const Duration(seconds: 5), (_) => _sendLocationUpdate());
+  }
+
+  Future<void> _sendLocationUpdate() async {
+    if (!_trackingActive) return;
+    Location location = Location();
+    try {
+      LocationData currentLocation = await location.getLocation();
+      if (currentLocation.latitude != null && currentLocation.longitude != null) {
+        sendLocationUpdate(
+          widget.socket,
+          widget.orderId,
+          currentLocation.latitude!,
+          currentLocation.longitude!,
+          accuracy: currentLocation.accuracy,
+          heading: currentLocation.heading,
+          speed: currentLocation.speed,
+        );
+      }
+    } catch (_) {}
   }
 
   Future<void> _setCurrentLocationMarkerAndCamera() async {
@@ -92,27 +131,13 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
     }
   }
 
-  void _addMarker(LatLng position) {
-    final id = MarkerId('m_${DateTime.now().millisecondsSinceEpoch}');
-    final marker = Marker(
-      markerId: id,
-      position: position,
-      infoWindow: InfoWindow(
-        title: 'Pinned',
-        snippet: '${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}',
-      ),
-      draggable: true,
-      onDragEnd: (p) {
-        setState(() {
-          _markers[id] = _markers[id]!.copyWith(positionParam: p);
-        });
-      },
-    );
-    setState(() => _markers[id] = marker);
-  }
-
   @override
   void dispose() {
+    _locationTimer?.cancel();
+    if (_trackingActive) {
+      stopDeliveryTracking(widget.socket, widget.orderId);
+      _trackingActive = false;
+    }
     if (!_controllerDisposed) {
       _controller.future.then((c) {
         c.dispose();
@@ -161,6 +186,46 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
             mini: false,
             onPressed: recenter,
             child: const Icon(Icons.my_location),
+          ),
+        ),
+        Positioned(
+          bottom: 24,
+          left: 16,
+          child: ElevatedButton(
+            onPressed: () {
+              if (_trackingActive) {
+                stopDeliveryTracking(widget.socket, widget.orderId);
+                _trackingActive = false;
+                _locationTimer?.cancel();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Order marked as complete.')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Complete order', style: TextStyle(color: Colors.white)),
+          ),
+        ),
+        Positioned(
+          bottom: 90,
+          left: 16,
+          child: ElevatedButton(
+            onPressed: () {
+              requestRouteUpdate(widget.socket, widget.orderId);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Route update requested.')),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Request route update', style: TextStyle(color: Colors.white)),
           ),
         ),
       ],

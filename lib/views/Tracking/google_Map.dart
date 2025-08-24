@@ -39,6 +39,73 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
     _mapType = widget.initialMapType;
     _setCurrentLocationMarkerAndCamera();
     _startDeliveryTracking();
+    _subscribeSocketEvents();
+  }
+
+  void _subscribeSocketEvents() {
+    final socket = widget.socket;
+    final orderId = widget.orderId;
+
+    socket.on('order_subscription_confirmed', (data) {
+      print('[WebSocket] order_subscription_confirmed: $data');
+      if (data is Map && data['orderId'] == orderId) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tracking started for this order.')),
+          );
+        }
+      }
+    });
+
+    socket.on('order_unsubscribe_from_order', (data) {
+      print('[WebSocket] order_unsubscribe_from_order: $data');
+      if (data is Map && data['orderId'] == orderId) {
+        // Optionally handle unsubscription confirmation
+      }
+    });
+
+    socket.on('delivery_tracking_started', (data) {
+      print('[WebSocket] delivery_tracking_started: $data');
+      if (data is Map && data['orderId'] == orderId) {
+        // Optionally handle delivery tracking started
+        // You can access: data['riderId'], data['timestamp'], data['initialRoute'], data['routeError']
+      }
+    });
+
+    socket.on('rider_location_update', (data) {
+      print('[WebSocket] rider_location_update: $data');
+      if (data is Map && data['orderId'] == orderId) {
+        // Optionally update rider marker or UI
+      }
+    });
+
+    socket.on('delivery_completed', (data) {
+      print('[WebSocket] delivery_completed: $data');
+      if (data is Map && data['orderId'] == orderId) {
+        // Optionally handle delivery completion
+      }
+    });
+
+    socket.on('route_calculated', (data) {
+      print('[WebSocket] route_calculated: $data');
+      if (data is Map && data['orderId'] == orderId) {
+        // Optionally handle initial route calculation
+      }
+    });
+
+    socket.on('route_updated', (data) {
+      print('[WebSocket] route_updated: $data');
+      if (data is Map && data['orderId'] == orderId) {
+        // Optionally handle route update
+      }
+    });
+
+    socket.on('route_tracking_data', (data) {
+      print('[WebSocket] route_tracking_data: $data');
+      if (data is Map && data['orderId'] == orderId) {
+        // Optionally handle comprehensive route tracking data
+      }
+    });
   }
 
   void _startDeliveryTracking() {

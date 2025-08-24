@@ -4,12 +4,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 
 class CustomGoogleMap extends StatefulWidget {
-  final CameraPosition initialCamera;
   final MapType initialMapType;
 
   const CustomGoogleMap({
     Key? key,
-    required this.initialCamera,
     this.initialMapType = MapType.normal,
   }) : super(key: key);
 
@@ -24,24 +22,27 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
   final Map<MarkerId, Marker> _markers = {};
   MapType _mapType = MapType.normal;
   LatLng? _currentLatLng;
+  CameraPosition? _initialCamera;
 
   @override
   void initState() {
     super.initState();
     _mapType = widget.initialMapType;
-    _setCurrentLocationMarker();
+    _setCurrentLocationMarkerAndCamera();
   }
 
-  Future<void> _setCurrentLocationMarker() async {
+  Future<void> _setCurrentLocationMarkerAndCamera() async {
     Location location = Location();
     try {
       LocationData currentLocation = await location.getLocation();
       if (currentLocation.latitude != null && currentLocation.longitude != null) {
+        final latLng = LatLng(currentLocation.latitude!, currentLocation.longitude!);
         setState(() {
-          _currentLatLng = LatLng(currentLocation.latitude!, currentLocation.longitude!);
+          _currentLatLng = latLng;
+          _initialCamera = CameraPosition(target: latLng, zoom: 16.0);
           _markers[const MarkerId('current_location')] = Marker(
             markerId: const MarkerId('current_location'),
-            position: _currentLatLng!,
+            position: latLng,
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
             infoWindow: const InfoWindow(title: 'Your Location'),
           );
@@ -123,10 +124,13 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
 
   @override
   Widget build(BuildContext context) {
+    if (_initialCamera == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return Stack(
       children: [
         GoogleMap(
-          initialCameraPosition: widget.initialCamera,
+          initialCameraPosition: _initialCamera!,
           onMapCreated: _onMapCreated,
           mapType: _mapType,
           myLocationEnabled: true,
@@ -134,7 +138,6 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
           compassEnabled: true,
           zoomControlsEnabled: false,
           markers: Set<Marker>.of(_markers.values),
-          onTap: _addMarker,
         ),
         Positioned(
           top: 16,
@@ -164,4 +167,3 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
     );
   }
 }
-

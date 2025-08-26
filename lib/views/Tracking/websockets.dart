@@ -69,9 +69,12 @@ void stopDeliveryTracking(IO.Socket socket, String orderId) {
 }
 
 // Emit to request a route update
-void requestRouteUpdate(IO.Socket socket, String orderId) {
-  print('[WebSocket] Emitting request_route_update for orderId: $orderId');
-  socket.emit("request_route_update", {
+void requestRouteUpdate(IO.Socket socket, String orderId, {double? latitude, double? longitude}) {
+  final payload = {
     "orderId": orderId,
-  });
+    if (latitude != null) "latitude": latitude,
+    if (longitude != null) "longitude": longitude,
+  };
+  print('[WebSocket] Emitting request_route_update: $payload');
+  socket.emit("request_route_update", payload);
 }

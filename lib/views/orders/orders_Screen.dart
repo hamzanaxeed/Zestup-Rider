@@ -15,202 +15,237 @@ class OrderDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    Future<void> _refreshOrder() async {
+      if (order.status?.toLowerCase() == 'out_for_delivery') {
+        // Only handle websocket logic, skip API call
+        final socket = await initializeSocket();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderTrackingScreen(
+              orderId: order.id ?? '',
+              socket: socket,
+            ),
+          ),
+        );
+      } else if (order.status?.toLowerCase() == 'assigned_to_rider') {
+        // Do all the stuff (API + websocket)
+        final socket = await initializeSocket();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderTrackingScreen(
+              orderId: order.id ?? '',
+              socket: socket,
+            ),
+          ),
+        );
+      } else {
+        // For other statuses, just refresh UI (or add your logic)
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Order #${order.displayId ?? ''}'),
         backgroundColor: theme.primaryColor,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.receipt_long, size: 32, color: Colors.blueAccent),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Order ID: ${order.id}',
-                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 24),
-                    Row(
-                      children: [
-                        const Icon(Icons.info_outline, color: Colors.orange),
-                        const SizedBox(width: 8),
-                        Text('Status: ', style: theme.textTheme.bodyMedium),
-                        Text(
-                          order.status ?? '',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: order.status == "cancelled"
-                                ? Colors.red
-                                : order.status == "completed"
-                                    ? Colors.green
-                                    : Colors.blue,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.delivery_dining, color: Colors.teal),
-                        const SizedBox(width: 8),
-                        Text('Type: ', style: theme.textTheme.bodyMedium),
-                        Text(order.type ?? '', style: theme.textTheme.bodyMedium),
-                      ],
-                    ),
-
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.attach_money, color: Colors.green),
-                        const SizedBox(width: 8),
-                        Text('Total: ', style: theme.textTheme.bodyMedium),
-                        Text('${order.total ?? ''}', style: theme.textTheme.bodyMedium),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.redAccent),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            order.deliveryAddress ?? '',
-                            style: theme.textTheme.bodyMedium,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.phone, color: Colors.blueGrey),
-                        const SizedBox(width: 8),
-                        Text(order.deliveryPhone ?? '', style: theme.textTheme.bodyMedium),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_today, color: Colors.purple),
-                        const SizedBox(width: 8),
-                        Text('Created: ', style: theme.textTheme.bodyMedium),
-                        Text(order.createdAt?.substring(0, 16) ?? '', style: theme.textTheme.bodyMedium),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Items',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...order.items.map((item) => Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  child: ListTile(
-                    leading: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: item.variant?.itemImage != null
-                          ? Image.network(
-                              item.variant!.itemImage!,
-                              width: 56,
-                              height: 56,
-                              fit: BoxFit.cover,
-                            )
-                          : Container(
-                              width: 56,
-                              height: 56,
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.fastfood, size: 32, color: Colors.grey),
-                            ),
-                    ),
-                    title: Text(
-                      item.variant?.itemName ?? '',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (item.variant?.name != null)
-                          Text('Variant: ${item.variant?.name}', style: theme.textTheme.bodySmall),
-                        Text('Quantity: ${item.variant?.quantity ?? ''}', style: theme.textTheme.bodySmall),
-                        Text('Price: ${item.price ?? ''}', style: theme.textTheme.bodySmall),
-                        if (item.variant?.description != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
+      body: RefreshIndicator(
+        onRefresh: _refreshOrder,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.receipt_long, size: 32, color: Colors.blueAccent),
+                          const SizedBox(width: 12),
+                          Expanded(
                             child: Text(
-                              item.variant!.description!,
-                              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                              'Order ID: ${order.id}',
+                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 24),
+                      Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.orange),
+                          const SizedBox(width: 8),
+                          Text('Status: ', style: theme.textTheme.bodyMedium),
+                          Text(
+                            order.status ?? '',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: order.status == "cancelled"
+                                  ? Colors.red
+                                  : order.status == "completed"
+                                      ? Colors.green
+                                      : Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.delivery_dining, color: Colors.teal),
+                          const SizedBox(width: 8),
+                          Text('Type: ', style: theme.textTheme.bodyMedium),
+                          Text(order.type ?? '', style: theme.textTheme.bodyMedium),
+                        ],
+                      ),
+
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.attach_money, color: Colors.green),
+                          const SizedBox(width: 8),
+                          Text('Total: ', style: theme.textTheme.bodyMedium),
+                          Text('${order.total ?? ''}', style: theme.textTheme.bodyMedium),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on, color: Colors.redAccent),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              order.deliveryAddress ?? '',
+                              style: theme.textTheme.bodyMedium,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                      ],
-                    ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone, color: Colors.blueGrey),
+                          const SizedBox(width: 8),
+                          Text(order.deliveryPhone ?? '', style: theme.textTheme.bodyMedium),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today, color: Colors.purple),
+                          const SizedBox(width: 8),
+                          Text('Created: ', style: theme.textTheme.bodyMedium),
+                          Text(order.createdAt?.substring(0, 16) ?? '', style: theme.textTheme.bodyMedium),
+                        ],
+                      ),
+                    ],
                   ),
-                )),
-            if (isPending) ...[
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        // Initialize socket connection with JWT token in handshake
-                        final socket = await initializeSocket();
+                ),
+              ),
 
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OrderTrackingScreen(
-                              orderId: order.id ?? '',
-                              socket: socket,
+              const SizedBox(height: 24),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Items',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...order.items.map((item) => Card(
+                    elevation: 3,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    child: ListTile(
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: item.variant?.itemImage != null
+                            ? Image.network(
+                                item.variant!.itemImage!,
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                width: 56,
+                                height: 56,
+                                color: Colors.grey[200],
+                                child: const Icon(Icons.fastfood, size: 32, color: Colors.grey),
+                              ),
+                      ),
+                      title: Text(
+                        item.variant?.itemName ?? '',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (item.variant?.name != null)
+                            Text('Variant: ${item.variant?.name}', style: theme.textTheme.bodySmall),
+                          Text('Quantity: ${item.variant?.quantity ?? ''}', style: theme.textTheme.bodySmall),
+                          Text('Price: ${item.price ?? ''}', style: theme.textTheme.bodySmall),
+                          if (item.variant?.description != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                item.variant!.description!,
+                                style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
+                        ],
+                      ),
+                    ),
+                  )),
+              if (isPending) ...[
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          // Initialize socket connection with JWT token in handshake
+                          final socket = await initializeSocket();
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => OrderTrackingScreen(
+                                orderId: order.id ?? '',
+                                socket: socket,
+                              ),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'Start delivery',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ),
-                      child: const Text(
-                        'Start delivery',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

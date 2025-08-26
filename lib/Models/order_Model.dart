@@ -21,6 +21,7 @@ class OrdersResponse {
       offset: data['offset'] ?? 0,
       limit: data['limit'] ?? 0,
     );
+
   }
 }
 

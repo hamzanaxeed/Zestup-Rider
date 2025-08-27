@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../Models/order_Model.dart';
 import 'orders/orders_Screen.dart';
 
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -14,7 +15,10 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+// Add a global RouteObserver for tracking navigation
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
+class _HomeScreenState extends State<HomeScreen> with RouteAware {
   int selectedTab = 0; // 0: Pending, 1: Completed
 
   void _showRoundedBottomSheet(BuildContext context) {
@@ -63,6 +67,44 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (context) => const LoginScreen()),
       (route) => false,
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    Future.microtask(() {
+      final controller = Provider.of<OrderController>(context, listen: false);
+      controller.fetchOrders(context: context);
+    });
+
+    // Subscribe to route changes using the global routeObserver
+    routeObserver.subscribe(this, ModalRoute.of(context) as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    // Unsubscribe from route changes using the global routeObserver
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Called when returning to this screen
+    final controller = Provider.of<OrderController>(context, listen: false);
+    controller.fetchOrders(context: context);
+    super.didPopNext();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Remove navigation to '/home' to avoid route error
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   if (ModalRoute.of(context)?.settings.name != '/home') {
+    //     Navigator.of(context).pushReplacementNamed('/home');
+    //   }
+    // });
   }
 
   @override

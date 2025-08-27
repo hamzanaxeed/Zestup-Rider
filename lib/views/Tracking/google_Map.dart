@@ -39,6 +39,8 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
   Set<Polyline> _polylines = {};
   final List<RouteData> _receivedRoutes = [];
 
+  double? _lastHeading;
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +77,8 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
       // Tracking is enabled only after successful delivery start
       _trackingActive = true;
       _startDeliveryTracking();
+      // Immediately emit location after starting delivery
+      await _sendLocationUpdate();
     } else {
       final msg = response['body']?['message'] ?? 'Failed to start delivery';
       if (mounted) {
@@ -175,16 +179,27 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
 
   void _startLocationUpdates() {
     _locationTimer?.cancel();
-    _locationTimer = Timer.periodic(const Duration(seconds: 5), (_) => _sendLocationUpdate());
+    // Emit location every 5 seconds
+    _locationTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      print('[DEBUG] Timer triggered for location_update');
+      _sendLocationUpdate();
+    });
   }
 
   Future<void> _sendLocationUpdate() async {
-    if (!_trackingActive || !_trackingConfirmed || widget.socket.disconnected) return;
+    print('[DEBUG] _sendLocationUpdate called');
+    // Allow location updates if tracking is active (not just confirmed)
+    if (!_trackingActive || widget.socket.disconnected) {
+      print('[DEBUG] Location update skipped: trackingActive=$_trackingActive, trackingConfirmed=$_trackingConfirmed, socketDisconnected=${widget.socket.disconnected}');
+      return;
+    }
     Location location = Location();
     try {
       LocationData currentLocation = await location.getLocation();
+      print('[DEBUG] Got current location: $currentLocation');
       if (currentLocation.latitude != null && currentLocation.longitude != null) {
-        // Always send current coordinates to websocket
+        // Emit to socket with event name "location_update" every 5 seconds
+        print('[DEBUG] Emitting location_update to socket');
         sendLocationUpdate(
           widget.socket,
           widget.orderId,
@@ -194,29 +209,50 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
           heading: currentLocation.heading,
           speed: currentLocation.speed,
         );
-      }
-    } catch (_) {}
-  }
 
-  /// Send the user's current coordinates immediately
-  Future<void> sendCurrentCoordinates() async {
-    if (!_trackingActive || !_trackingConfirmed || widget.socket.disconnected) return;
-    Location location = Location();
-    try {
-      LocationData currentLocation = await location.getLocation();
-      if (currentLocation.latitude != null && currentLocation.longitude != null) {
-        // Always send current coordinates to websocket
-        sendLocationUpdate(
-          widget.socket,
-          widget.orderId,
-          currentLocation.latitude!,
-          currentLocation.longitude!,
-          accuracy: currentLocation.accuracy,
-          heading: currentLocation.heading,
-          speed: currentLocation.speed,
+        // Update marker and animate camera to follow user
+        final latLng = LatLng(currentLocation.latitude!, currentLocation.longitude!);
+
+        // Only update heading if it is valid and has changed significantly
+        double heading = (currentLocation.heading ?? 0.0);
+        if (heading < 0 || heading > 360) heading = 0.0;
+        if (_lastHeading == null || (heading - _lastHeading!).abs() > 2) {
+          _lastHeading = heading;
+        } else {
+          heading = _lastHeading!;
+        }
+
+        if (mounted) {
+          setState(() {
+            _currentLatLng = latLng;
+            _markers[const MarkerId('current_location')] = Marker(
+              markerId: const MarkerId('current_location'),
+              position: latLng,
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+              infoWindow: const InfoWindow(title: 'Your Location'),
+              rotation: heading,
+            );
+          });
+        }
+
+        // Animate camera to follow user and rotate according to heading
+        final controller = await _controller.future;
+        await controller.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: latLng,
+              zoom: 17.5,
+              bearing: heading,
+              tilt: 45,
+            ),
+          ),
         );
+      } else {
+        print('[DEBUG] Location data missing latitude/longitude');
       }
-    } catch (_) {}
+    } catch (e) {
+      print('[DEBUG] Error in _sendLocationUpdate: $e');
+    }
   }
 
   Future<void> _setCurrentLocationMarkerAndCamera() async {
@@ -227,12 +263,18 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
         final latLng = LatLng(currentLocation.latitude!, currentLocation.longitude!);
         setState(() {
           _currentLatLng = latLng;
-          _initialCamera = CameraPosition(target: latLng, zoom: 16.0);
+          _initialCamera = CameraPosition(
+            target: latLng,
+            zoom: 17.5,
+            bearing: currentLocation.heading ?? 0.0,
+            tilt: 45,
+          );
           _markers[const MarkerId('current_location')] = Marker(
             markerId: const MarkerId('current_location'),
             position: latLng,
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
             infoWindow: const InfoWindow(title: 'Your Location'),
+            rotation: currentLocation.heading ?? 0.0,
           );
         });
         // Always send current coordinates to websocket
@@ -264,13 +306,16 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
             position: _currentLatLng!,
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
             infoWindow: const InfoWindow(title: 'Your Location'),
+            rotation: currentLocation.heading ?? 0.0,
           );
         });
         await controller.animateCamera(
           CameraUpdate.newCameraPosition(
             CameraPosition(
               target: LatLng(currentLocation.latitude!, currentLocation.longitude!),
-              zoom: 16.0,
+              zoom: 17.5,
+              bearing: currentLocation.heading ?? 0.0,
+              tilt: 45,
             ),
           ),
         );
@@ -318,7 +363,14 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
 
   @override
   Widget build(BuildContext context) {
+    // Defensive: If initial camera is null for too long, try to reset location
     if (_initialCamera == null) {
+      // Try to re-fetch location and set camera after a short delay
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted && _initialCamera == null) {
+          _setCurrentLocationMarkerAndCamera();
+        }
+      });
       return const Center(child: CircularProgressIndicator());
     }
     return Stack(
@@ -364,8 +416,6 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
           child: ElevatedButton(
             onPressed: () async {
               if (_trackingActive) {
-                // 1. Make API request to complete the order
-                // Ensure ISO string is valid (no microseconds, UTC, ends with Z)
                 final now = DateTime.now().toUtc();
                 final completionTime = now.toIso8601String().split('.').first + 'Z';
                 final response = await ApiCall.callApiPut(
@@ -377,23 +427,27 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
                   context: context,
                 );
 
-                // 2. Stop delivery tracking via websocket
-                stopDeliveryTracking(widget.socket, widget.orderId);
-
-                // 3. Show result to user
                 if (response['statusCode'] == 200) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Order marked as complete.')),
                   );
+                  stopDeliveryTracking(widget.socket, widget.orderId);
+                  _trackingActive = false;
+                  _locationTimer?.cancel();
+                  // Move user to home screen and refresh list
+                  if (mounted) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    // Optionally, trigger a refresh if HomeScreen is still mounted
+                    // (You may need to use a callback or state management for this)
+                  }
                 } else {
                   final msg = response['body']?['message'] ?? 'Failed to complete order';
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(msg)),
                   );
+                  _trackingActive = false;
+                  _locationTimer?.cancel();
                 }
-
-                _trackingActive = false;
-                _locationTimer?.cancel();
               }
             },
             style: ElevatedButton.styleFrom(

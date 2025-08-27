@@ -53,7 +53,10 @@ class OrderDetailScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: RefreshIndicator(
-        onRefresh: _refreshOrder,
+        onRefresh: () async {
+          // Refresh orders list when user pulls down
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),

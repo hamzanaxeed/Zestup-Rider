@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math'; // <-- Add this import for math functions
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
@@ -29,7 +30,7 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
 
   final Map<MarkerId, Marker> _markers = {};
   MapType _mapType = MapType.normal;
-  LatLng? _currentLatLng;
+  LatLng? _currentLatLng; // <-- Only declare once here
   CameraPosition? _initialCamera;
 
   Timer? _locationTimer;
@@ -91,25 +92,63 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
   }
 
   void _updateRouteOnMap(RouteData routeData) {
-    if (!mounted) return; // Prevent setState after dispose
+    if (!mounted) return;
     setState(() {
       _routeData = routeData;
       _receivedRoutes.add(routeData);
+
+      // Only show the left distance (not the covered part)
+      List<LatLng> routePoints = routeData.decodedCoordinates.isNotEmpty
+          ? routeData.decodedCoordinates
+              .map((c) => LatLng(c.latitude, c.longitude))
+              .toList()
+          : routeData.waypoints
+              .map((wp) => LatLng(wp.latitude, wp.longitude))
+              .toList();
+
+      // Remove covered distance: find nearest point to current location and show only remaining route
+      if (_currentLatLng != null && routePoints.isNotEmpty) {
+        int closestIdx = 0;
+        double minDist = double.infinity;
+        for (int i = 0; i < routePoints.length; i++) {
+          double dist = _distanceBetween(
+            _currentLatLng!.latitude,
+            _currentLatLng!.longitude,
+            routePoints[i].latitude,
+            routePoints[i].longitude,
+          );
+          if (dist < minDist) {
+            minDist = dist;
+            closestIdx = i;
+          }
+        }
+        // Only show the remaining route from closestIdx onwards
+        routePoints = routePoints.sublist(closestIdx);
+      }
+
       _polylines = {
         Polyline(
           polylineId: const PolylineId('route_polyline'),
           color: Colors.blue,
           width: 5,
-          points: routeData.decodedCoordinates.isNotEmpty
-              ? routeData.decodedCoordinates
-                  .map((c) => LatLng(c.latitude, c.longitude))
-                  .toList()
-              : routeData.waypoints
-                  .map((wp) => LatLng(wp.latitude, wp.longitude))
-                  .toList(),
+          points: routePoints,
         ),
       };
     });
+  }
+
+  // Helper to calculate distance between two lat/lng points (Haversine formula)
+  double _distanceBetween(double lat1, double lng1, double lat2, double lng2) {
+    const double R = 6371000; // meters
+    double dLat = (lat2 - lat1) * (pi / 180.0);
+    double dLng = (lng2 - lng1) * (pi / 180.0);
+    double a =
+      (sin(dLat / 2) * sin(dLat / 2)) +
+      cos(lat1 * (pi / 180.0)) *
+      cos(lat2 * (pi / 180.0)) *
+      (sin(dLng / 2) * sin(dLng / 2));
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c;
   }
 
   void _subscribeSocketEvents() {
@@ -212,6 +251,12 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
 
         // Update marker and animate camera to follow user
         final latLng = LatLng(currentLocation.latitude!, currentLocation.longitude!);
+        _currentLatLng = latLng; // Update currentLatLng for route filtering
+
+        // If routeData exists, update polyline to show only left distance
+        if (_routeData != null) {
+          _updateRouteOnMap(_routeData!);
+        }
 
         // Only update heading if it is valid and has changed significantly
         double heading = (currentLocation.heading ?? 0.0);
@@ -299,8 +344,9 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
     try {
       currentLocation = await location.getLocation();
       if (currentLocation.latitude != null && currentLocation.longitude != null) {
+        final latLng = LatLng(currentLocation.latitude!, currentLocation.longitude!);
         setState(() {
-          _currentLatLng = LatLng(currentLocation.latitude!, currentLocation.longitude!);
+          _currentLatLng = latLng;
           _markers[const MarkerId('current_location')] = Marker(
             markerId: const MarkerId('current_location'),
             position: _currentLatLng!,
@@ -312,7 +358,7 @@ class _CustomGoogleMapState extends State<CustomGoogleMap> {
         await controller.animateCamera(
           CameraUpdate.newCameraPosition(
             CameraPosition(
-              target: LatLng(currentLocation.latitude!, currentLocation.longitude!),
+              target: latLng,
               zoom: 17.5,
               bearing: currentLocation.heading ?? 0.0,
               tilt: 45,

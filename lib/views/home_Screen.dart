@@ -138,257 +138,199 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
       ),
       body: RefreshIndicator(
         onRefresh: _refreshOrders,
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFFF8FAFF), Color(0xFFE8F0FE)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 18),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: selectedTab == 0 ? Appcolors.primaryColor : Colors.white,
-                          foregroundColor: selectedTab == 0 ? Colors.white : Appcolors.primaryColor,
-                          elevation: selectedTab == 0 ? 2 : 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                              color: Appcolors.primaryColor,
-                              width: 1.5,
-                            ),
-                          ),
+        child: Consumer<OrderController>(
+          builder: (context, orderController, _) {
+            // Filter orders based on selectedTab
+            List<Order> filteredOrders;
+            if (selectedTab == 1) {
+              filteredOrders = orderController.orders
+                  .where((o) => o.status?.toLowerCase() == 'delivered' || o.status?.toLowerCase() == 'completed')
+                  .toList();
+            } else {
+              filteredOrders = orderController.orders
+                  .where((o) => o.status?.toLowerCase() != 'delivered' && o.status?.toLowerCase() != 'completed')
+                  .toList();
+            }
+
+            // Always provide a scrollable widget for RefreshIndicator
+            if (orderController.loading) {
+              // Show loading indicator, but allow pull-to-refresh
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(
+                    height: 300,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ],
+              );
+            }
+            if (orderController.errorMessage != null) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline, color: Colors.red, size: 48),
+                        const SizedBox(height: 16),
+                        Text(
+                          orderController.errorMessage!,
+                          style: const TextStyle(fontSize: 18, color: Colors.red, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
                         ),
-                        onPressed: () {
-                          setState(() {
-                            selectedTab = 0;
-                          });
-                        },
-                        child: const Text('Pending', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }
+            if (filteredOrders.isEmpty) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.5,
+                    child: Center(
+                      child: Text(
+                        selectedTab == 1 ? 'No completed orders.' : 'No pending orders.',
+                        style: theme.textTheme.titleMedium?.copyWith(color: Colors.grey),
                       ),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: selectedTab == 1 ? Appcolors.primaryColor : Colors.white,
-                          foregroundColor: selectedTab == 1 ? Colors.white : Appcolors.primaryColor,
-                          elevation: selectedTab == 1 ? 2 : 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                              color: Appcolors.primaryColor,
-                              width: 1.5,
-                            ),
-                          ),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            selectedTab = 1;
-                          });
-                        },
-                        child: const Text('Completed', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: Consumer<OrderController>(
-                  builder: (context, orderController, _) {
-                    if (orderController.loading) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (orderController.errorMessage != null) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.error_outline, color: Colors.red, size: 48),
-                              const SizedBox(height: 16),
-                              Text(
-                                orderController.errorMessage!,
-                                style: const TextStyle(fontSize: 18, color: Colors.red, fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
+                  ),
+                ],
+              );
+            }
+            return ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemCount: filteredOrders.length,
+              itemBuilder: (context, index) {
+                final order = filteredOrders[index];
+                return Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OrderDetailScreen(order: order),
                         ),
                       );
-                    }
-                    // Filter orders based on selectedTab
-                    List<Order> filteredOrders;
-                    if (selectedTab == 1) {
-                      filteredOrders = orderController.orders
-                          .where((o) => o.status?.toLowerCase() == 'delivered' || o.status?.toLowerCase() == 'completed')
-                          .toList();
-                    } else {
-                      filteredOrders = orderController.orders
-                          .where((o) => o.status?.toLowerCase() != 'delivered' && o.status?.toLowerCase() != 'completed')
-                          .toList();
-                    }
-                    // Always provide a scrollable widget for RefreshIndicator
-                    if (filteredOrders.isEmpty) {
-                      return ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+                      child: Row(
                         children: [
-                          SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.5,
-                            child: Center(
-                              child: Text(
-                                selectedTab == 1 ? 'No completed orders.' : 'No pending orders.',
-                                style: theme.textTheme.titleMedium?.copyWith(color: Colors.grey),
-                              ),
+                          CircleAvatar(
+                            radius: 28,
+                            backgroundColor: order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
+                                ? Colors.green[100]
+                                : Colors.orange[100],
+                            child: Icon(
+                              order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
+                                  ? Icons.check_circle_outline
+                                  : Icons.timelapse,
+                              color: order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
+                                  ? Colors.green
+                                  : Colors.orange,
+                              size: 32,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Use Expanded here to avoid overflow
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Order #${order.displayId ?? ''}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.location_on, size: 16, color: Colors.blueGrey),
+                                    const SizedBox(width: 4),
+                                    // Use Flexible to avoid overflow
+                                    Flexible(
+                                      child: Text(
+                                        order.deliveryAddress ?? '',
+                                        style: const TextStyle(fontSize: 14, color: Colors.black87),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        order.createdAt?.substring(0, 16) ?? '',
+                                        style: const TextStyle(fontSize: 13, color: Colors.grey),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Use Flexible for trailing column to avoid overflow
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  order.status ?? '',
+                                  style: TextStyle(
+                                    color: order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
+                                        ? Colors.green
+                                        : Colors.orange,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue[50],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Rs. ${order.total ?? ''}',
+                                    style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blue),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      );
-                    }
-                    return ListView.separated(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemCount: filteredOrders.length,
-                      itemBuilder: (context, index) {
-                        final order = filteredOrders[index];
-                        return Card(
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => OrderDetailScreen(order: order),
-                                ),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 28,
-                                    backgroundColor: order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
-                                        ? Colors.green[100]
-                                        : Colors.orange[100],
-                                    child: Icon(
-                                      order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
-                                          ? Icons.check_circle_outline
-                                          : Icons.timelapse,
-                                      color: order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
-                                          ? Colors.green
-                                          : Colors.orange,
-                                      size: 32,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  // Use Expanded here to avoid overflow
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Order #${order.displayId ?? ''}',
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          crossAxisAlignment: CrossAxisAlignment.center,
-                                          children: [
-                                            const Icon(Icons.location_on, size: 16, color: Colors.blueGrey),
-                                            const SizedBox(width: 4),
-                                            // Use Flexible to avoid overflow
-                                            Flexible(
-                                              child: Text(
-                                                order.deliveryAddress ?? '',
-                                                style: const TextStyle(fontSize: 14, color: Colors.black87),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Row(
-                                          crossAxisAlignment: CrossAxisAlignment.center,
-                                          children: [
-                                            const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
-                                            const SizedBox(width: 4),
-                                            Flexible(
-                                              child: Text(
-                                                order.createdAt?.substring(0, 16) ?? '',
-                                                style: const TextStyle(fontSize: 13, color: Colors.grey),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  // Use Flexible for trailing column to avoid overflow
-                                  Flexible(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          order.status ?? '',
-                                          style: TextStyle(
-                                            color: order.status?.toLowerCase() == 'delivered' || order.status?.toLowerCase() == 'completed'
-                                                ? Colors.green
-                                                : Colors.orange,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue[50],
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Text(
-                                            'Rs. ${order.total ?? ''}',
-                                            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blue),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                        },
-                      );
-
-                  },
-                ),
-              )
-            ],
-            ),
-          ),
+                      ),
+                    ),
+                  ),
+                );
+                },
+              );
+          },
         ),
+      ),
     );
   }
 }
-

@@ -30,6 +30,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
+        navigatorObservers: [routeObserver], // Add the global RouteObserver here
         home: FutureBuilder<Widget>(
           future: _getInitialScreen(),
           builder: (context, snapshot) {

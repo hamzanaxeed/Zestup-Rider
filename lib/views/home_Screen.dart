@@ -69,28 +69,31 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
     );
   }
 
+  Future<void> _refreshOrders() async {
+    final controller = Provider.of<OrderController>(context, listen: false);
+    await controller.fetchOrders(context: context);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    Future.microtask(() {
-      final controller = Provider.of<OrderController>(context, listen: false);
-      controller.fetchOrders(context: context);
-    });
-
     // Subscribe to route changes using the global routeObserver
     routeObserver.subscribe(this, ModalRoute.of(context) as PageRoute);
+
+    // Always refresh orders when dependencies change (e.g. when returning to this screen)
+    final controller = Provider.of<OrderController>(context, listen: false);
+    controller.fetchOrders(context: context);
   }
 
   @override
   void dispose() {
-    // Unsubscribe from route changes using the global routeObserver
     routeObserver.unsubscribe(this);
     super.dispose();
   }
 
   @override
   void didPopNext() {
-    // Called when returning to this screen
+    // Called when returning to this screen from another route
     final controller = Provider.of<OrderController>(context, listen: false);
     controller.fetchOrders(context: context);
     super.didPopNext();
@@ -99,49 +102,43 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
-    // Remove navigation to '/home' to avoid route error
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   if (ModalRoute.of(context)?.settings.name != '/home') {
-    //     Navigator.of(context).pushReplacementNamed('/home');
-    //   }
-    // });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return ChangeNotifierProvider(
-      create: (_) => OrderController()..fetchOrders(context: context),
-      child: Scaffold(
-        backgroundColor: Appcolors.backgroundColor,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(70),
-          child: AppBar(
-            backgroundColor: Appcolors.appBarColor,
-            centerTitle: true,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(
-                bottom: Radius.circular(24),
-              ),
+    return Scaffold(
+      backgroundColor: Appcolors.backgroundColor,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: AppBar(
+          backgroundColor: Appcolors.appBarColor,
+          centerTitle: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(
+              bottom: Radius.circular(24),
             ),
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.shopping_bag_outlined, size: 28),
-                SizedBox(width: 8),
-                Text('Orders', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 26)),
-              ],
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: 'Logout',
-                onPressed: () => _logout(context),
-              ),
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.shopping_bag_outlined, size: 28),
+              SizedBox(width: 8),
+              Text('Orders', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 26)),
             ],
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Logout',
+              onPressed: () => _logout(context),
+            ),
+          ],
         ),
-        body: Container(
+      ),
+      body: RefreshIndicator(
+        onRefresh: _refreshOrders,
+        child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [Color(0xFFF8FAFF), Color(0xFFE8F0FE)],
@@ -241,15 +238,25 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                           .where((o) => o.status?.toLowerCase() != 'delivered' && o.status?.toLowerCase() != 'completed')
                           .toList();
                     }
+                    // Always provide a scrollable widget for RefreshIndicator
                     if (filteredOrders.isEmpty) {
-                      return Center(
-                        child: Text(
-                          selectedTab == 1 ? 'No completed orders.' : 'No pending orders.',
-                          style: theme.textTheme.titleMedium?.copyWith(color: Colors.grey),
-                        ),
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.5,
+                            child: Center(
+                              child: Text(
+                                selectedTab == 1 ? 'No completed orders.' : 'No pending orders.',
+                                style: theme.textTheme.titleMedium?.copyWith(color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                        ],
                       );
                     }
                     return ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemCount: filteredOrders.length,
@@ -369,35 +376,19 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                 ],
                               ),
                             ),
-                          )
+                          ),
                         );
+                        },
+                      );
 
-                      },
-                    );
                   },
                 ),
-              ),
+              )
             ],
+            ),
           ),
         ),
-        // floatingActionButton: Builder(
-        //   builder: (context) => ElevatedButton(
-        //     onPressed: () => _showRoundedBottomSheet(context),
-        //     style: ElevatedButton.styleFrom(
-        //       shape: RoundedRectangleBorder(
-        //         borderRadius: BorderRadius.circular(24),
-        //       ),
-        //       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-        //       backgroundColor: Appcolors.primaryColor,
-        //     ),
-        //     child: const Text(
-        //       'Show Bottom Sheet',
-        //       style: TextStyle(fontSize: 18, color: Colors.white),
-        //     ),
-        //   ),
-        // ),
-        // floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      ),
     );
   }
 }
+

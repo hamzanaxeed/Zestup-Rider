@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,16 +20,41 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: FirebaseOptions(
-      apiKey: "AIzaSyAjCdvSgy-Gi2LLrRjuqDSyYVWSEmyquls",
-      appId: "1:61182238429:android:7739d66a2727a876130534",
-      messagingSenderId: "61182238429",
-      projectId: "zest-up",
-      storageBucket: "zest-up.firebasestorage.app",
-    ),
-  );
 
+  // Fetch Firebase config from backend
+  const String configUrl = "https://zestupbackend-59oze.sevalla.app/api/application-info/rider/firebase-config";
+  final configResp = await http.get(Uri.parse(configUrl));
+  if (configResp.statusCode == 200) {
+    final configJson = jsonDecode(configResp.body);
+    print('[Firebase Config] $configJson');
+    final data = configJson['data'];
+    print('[Firebase Config Data] $data');
+    final client = data['client'][0];
+    print('[Firebase Client] $client');
+    final apiKey = client['api_key'][0]['current_key'];
+    print('[Firebase) API Key] $apiKey');
+    final appId = client['client_info']['mobilesdk_app_id'];
+    print('[Firebase App ID] $appId');
+    final projectId = data['project_info']['project_id'];
+    print('[Firebase Project ID] $projectId');
+    final messagingSenderId = data['project_info']['project_number'];
+    print('[Firebase Messaging Sender ID] $messagingSenderId');
+    final storageBucket = data['project_info']['storage_bucket'];
+    print('[Firebase Storage Bucket] $storageBucket');
+
+    await Firebase.initializeApp(
+      options: FirebaseOptions(
+        apiKey: apiKey,
+        appId: appId,
+        messagingSenderId: messagingSenderId,
+        projectId: projectId,
+        storageBucket: storageBucket,
+      ),
+    );
+  } else {
+    // Handle error or fallback to default config if needed
+    throw Exception('Failed to load Firebase config');
+  }
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 

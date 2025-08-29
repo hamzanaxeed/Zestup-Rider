@@ -4,8 +4,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'controllers/order_Controller.dart';
 import 'views/Authentication/login_Screen.dart';
 import 'views/home_Screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'Notifications.dart'; // <-- Add this import
 
-void main() {
+// Handle background messages
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("Background message: ${message.notification?.title}");
+}
+
+// Remove requestPermission() here, handled by Notifications class
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Initialize notifications setup
+  await Notifications.initialize();
+
   runApp(const MyApp());
 }
 

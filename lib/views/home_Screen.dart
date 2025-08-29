@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import '../Models/order_Model.dart';
 import 'orders/orders_Screen.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -102,6 +101,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
+    // Notification setup removed, handled globally in main.dart
   }
 
   @override

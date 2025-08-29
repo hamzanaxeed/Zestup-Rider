@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../helpers/Colors.dart';
 import '../../controllers/auth_Controller.dart';
 import '../../helpers/snackbar.dart';
 import '../home_Screen.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'forget_Password_EmailScreen.dart';
+import '../../helpers/Apicall.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +22,37 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false; // Add loading state
+
+  Future<void> _registerDeviceToken(BuildContext context) async {
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+    String deviceType = "unknown";
+    final platform = Theme.of(context).platform;
+    if (platform == TargetPlatform.android) {
+      deviceType = "ANDROID";
+    } else if (platform == TargetPlatform.iOS) {
+      deviceType = "IOS";
+    } else {
+      deviceType = platform.name;
+    }
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      final response = await ApiCall.callApiPost(
+        {
+          "deviceToken": fcmToken,
+          "deviceType": deviceType,
+        },
+        "/user-device",
+        withAuth: true,
+        context: context,
+      );
+
+      print("[Device Token Registration] Status: ${response['statusCode']}, Body: ${response['body']}");
+
+      print('userDeviceId : ${response['body']['data']['userDeviceId']}');
+
+      final shref = await SharedPreferences.getInstance();
+      shref.setString('userDeviceId',response['body']['data']['userDeviceId']);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -282,6 +317,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               });
 
                               if (loginSuccess == true) {
+                                // Register device token after login
+                                await _registerDeviceToken(context);
                                 // Delay to allow snackbar to show before navigation
                                 Future.delayed(const Duration(milliseconds: 500), () {
                                   Navigator.pushReplacement(

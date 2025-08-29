@@ -5,7 +5,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 
     // 🔹 Add this for Firebase
-    id("com.google.gms.google-services")
+   // id("com.google.gms.google-services")
 }
 
 android {

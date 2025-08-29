@@ -27,6 +27,7 @@ class ApiCall {
         final token = prefs.getString('accessToken');
         if (token != null && token.isNotEmpty) {
           headers['Authorization'] = 'Bearer $token';
+          print('Token: $token');
           print("[POST] Authenticated with token");
         } else {
           print("[POST] No token found for auth");

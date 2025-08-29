@@ -165,4 +165,40 @@ class AuthController {
     }
   }
 
+  static Future<bool> logoutUser(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userDeviceId = prefs.getString('userDeviceId');
+    bool deviceDeleted = false;
+
+    // 1. Delete user device if id exists
+    if (userDeviceId != null && userDeviceId.isNotEmpty) {
+      final deviceDeleteResp = await ApiCall.callApiDelete(
+        "/user-device/$userDeviceId",
+        withAuth: true,
+        context: context,
+      );
+      print('[LOGOUT] Device delete response: $deviceDeleteResp');
+      deviceDeleted = deviceDeleteResp['statusCode'] == 200 || deviceDeleteResp['statusCode'] == 204;
+    }
+
+    // 2. Logout from all devices
+    final logoutResp = await ApiCall.callApiPost(
+      {},
+      "/auth/rider/logout/all-devices",
+      withAuth: true,
+      context: context,
+    );
+    print('[LOGOUT] All devices logout response: $logoutResp');
+
+    // 3. If logout successful, clear prefs and return true
+    if (logoutResp['statusCode'] == 204) {
+      await prefs.clear();
+      showSuccessSnackbar(context, "Logged out successfully.");
+      return true;
+    } else {
+      showErrorSnackbar(context, "Logout failed. Please try again.");
+      return false;
+    }
+  }
+
 }

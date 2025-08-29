@@ -3,6 +3,7 @@ import 'package:rider/helpers/Colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../views/Authentication/login_Screen.dart';
 import '../controllers/order_Controller.dart';
+import '../controllers/auth_Controller.dart';
 import 'package:provider/provider.dart';
 import '../Models/order_Model.dart';
 import 'orders/orders_Screen.dart';
@@ -59,13 +60,15 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   }
 
   Future<void> _logout(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) => false,
-    );
+    final success = await AuthController.logoutUser(context);
+    if (success) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+    // If not successful, snackbar is already shown in AuthController
   }
 
   Future<void> _refreshOrders() async {
@@ -79,9 +82,11 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
     // Subscribe to route changes using the global routeObserver
     routeObserver.subscribe(this, ModalRoute.of(context) as PageRoute);
 
-    // Always refresh orders when dependencies change (e.g. when returning to this screen)
-    final controller = Provider.of<OrderController>(context, listen: false);
-    controller.fetchOrders(context: context);
+    // Schedule fetchOrders after build to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = Provider.of<OrderController>(context, listen: false);
+      controller.fetchOrders(context: context);
+    });
   }
 
   @override

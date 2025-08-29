@@ -18,7 +18,16 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: FirebaseOptions(
+      apiKey: "AIzaSyAjCdvSgy-Gi2LLrRjuqDSyYVWSEmyquls",
+      appId: "1:61182238429:android:7739d66a2727a876130534",
+      messagingSenderId: "61182238429",
+      projectId: "zest-up",
+      storageBucket: "zest-up.firebasestorage.app",
+    ),
+  );
+
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 

@@ -63,7 +63,6 @@ class Notifications {
 
   static void _listenForeground() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('========================================================================================');
       print("Message received in foreground: ${message.notification?.title}");
       _showLocalNotification(message);
     });
@@ -77,7 +76,7 @@ class Notifications {
 
   static void _printToken() {
     FirebaseMessaging.instance.getToken().then((token) {
-      //print('111111111111111111111111111111111111111111111111111111111111111');
+      print('111111111111111111111111111111111111111111111111111111111111111');
       print("FCM Token: $token");
     });
   }

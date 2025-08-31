@@ -45,6 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
         context: context,
       );
 
+
       print("[Device Token Registration] Status: ${response['statusCode']}, Body: ${response['body']}");
 
       print('userDeviceId : ${response['body']['data']['userDeviceId']}');

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../Models/order_Model.dart';
 import '../helpers/Apicall.dart';
+import 'dart:convert';
 
 class OrderController extends ChangeNotifier {
   List<Order> _orders = [];
@@ -18,6 +19,10 @@ class OrderController extends ChangeNotifier {
     final response = await ApiCall.callApiGet('/riders/orders', withAuth: true, context: context);
     final statusCode = response['statusCode'];
     if (statusCode == 200 && response['body'] != null && response['body']['success'] == true) {
+      print('[FETCH ORDERS] Response:');
+      //final decoded = json.decode(response['body']);        // parse the JSON
+      const encoder = JsonEncoder.withIndent('  ');         // 2-space indentation
+      print(encoder.convert(response['body'])); // pretty-print JSON
       final OrdersResponse ordersResponse = OrdersResponse.fromJson(response['body']);
       _orders = ordersResponse.orders;
       _errorMessage = null;

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../Models/order_Model.dart';
-import '../Tracking/order_Tracking_Map.dart';
-import '../Tracking/websockets.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   final Order order;
@@ -12,39 +11,28 @@ class OrderDetailScreen extends StatelessWidget {
     return status != 'delivered' && status != 'completed';
   }
 
+  // Helper to get current location
+  Future<Position> _getCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception('Location services are disabled.');
+    }
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('Location permissions are denied');
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception('Location permissions are permanently denied.');
+    }
+    return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    Future<void> _refreshOrder() async {
-      if (order.status?.toLowerCase() == 'out_for_delivery') {
-        // Only handle websocket logic, skip API call
-        final socket = await initializeSocket();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OrderTrackingScreen(
-              orderId: order.id ?? '',
-              socket: socket,
-            ),
-          ),
-        );
-      } else if (order.status?.toLowerCase() == 'assigned_to_rider') {
-        // Do all the stuff (API + websocket)
-        final socket = await initializeSocket();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OrderTrackingScreen(
-              orderId: order.id ?? '',
-              socket: socket,
-            ),
-          ),
-        );
-      } else {
-        // For other statuses, just refresh UI (or add your logic)
-      }
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -54,7 +42,6 @@ class OrderDetailScreen extends StatelessWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          // Refresh orders list when user pulls down
           Navigator.of(context).popUntil((route) => route.isFirst);
         },
         child: SingleChildScrollView(
@@ -109,7 +96,6 @@ class OrderDetailScreen extends StatelessWidget {
                           Text(order.type ?? '', style: theme.textTheme.bodyMedium),
                         ],
                       ),
-
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -218,21 +204,33 @@ class OrderDetailScreen extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () async {
-                          // Initialize socket connection with JWT token in handshake
-                          final socket = await initializeSocket();
 
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => OrderTrackingScreen(
-                                orderId: order.id ?? '',
-                                socket: socket,
-                              ),
-                            ),
-                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Go to branch',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),

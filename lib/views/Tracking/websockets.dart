@@ -1,32 +1,66 @@
+import 'package:flutter/widgets.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:shared_preferences/shared_preferences.dart';
 
-Future<IO.Socket> initializeSocket() async {
-  final prefs = await SharedPreferences.getInstance();
-  final jwtToken = prefs.getString('accessToken') ?? '';
+class WebSocketManager with WidgetsBindingObserver {
+  IO.Socket? _socket;
+  String? _jwtToken;
 
-  final socket = IO.io(
-    'ws://zestupbackend-59oze.sevalla.app',
-    IO.OptionBuilder()
-        .setTransports(['websocket'])
-        .setAuth({'token': jwtToken})
-        .build(),
-  );
+  static final WebSocketManager _instance = WebSocketManager._internal();
+  factory WebSocketManager() => _instance;
+  WebSocketManager._internal();
 
-  socket.onConnect((_) {
-    print('[WebSocket] Connected successfully');
-  });
-  socket.onConnectError((err) {
-    print('[WebSocket] Connection error: $err');
-  });
-  socket.onError((err) {
-    print('[WebSocket] General error: $err');
-  });
-  socket.onDisconnect((_) {
-    print('[WebSocket] Disconnected');
-  });
+  Future<IO.Socket> initializeSocket() async {
+    final prefs = await SharedPreferences.getInstance();
+    _jwtToken = prefs.getString('accessToken') ?? '';
 
-  return socket;
+    _socket = IO.io(
+      'ws://zestupbackend-59oze.sevalla.app',
+      IO.OptionBuilder()
+          .setTransports(['websocket'])
+          .setAuth({'token': _jwtToken})
+          .build(),
+    );
+
+    _socket!.onConnect((_) {
+      print('[WebSocket] Connected successfully');
+    });
+    _socket!.onConnectError((err) {
+      print('[WebSocket] Connection error: $err');
+    });
+    _socket!.onError((err) {
+      print('[WebSocket] General error: $err');
+    });
+    _socket!.onDisconnect((_) {
+      print('[WebSocket] Disconnected');
+    });
+
+    WidgetsBinding.instance.addObserver(this);
+
+    return _socket!;
+  }
+
+  IO.Socket? get socket => _socket;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_socket == null) return;
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Optionally keep alive or reconnect on resume
+      print('[WebSocket] App in background, keeping socket alive');
+    } else if (state == AppLifecycleState.resumed) {
+      if (!(_socket?.connected ?? false)) {
+        print('[WebSocket] App resumed, reconnecting socket');
+        _socket?.connect();
+      }
+    }
+  }
+
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _socket?.dispose();
+    _socket = null;
+  }
 }
 
 // Emit when delivery tracking starts

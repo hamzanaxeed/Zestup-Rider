@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../../Models/order_Model.dart';
 import '../../helpers/Apicall.dart';
 import '../../views/Tracking/websockets.dart';
@@ -242,7 +244,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           onPressed: () async {
                             final socket = await WebSocketManager().initializeSocket();
 
-                            // Wait for socket connection before emitting move_to_branch
                             if (!socket.connected) {
                               socket.on('connect', (_) {
                                 moveToBranch(socket, order['id'] ?? '');
@@ -252,45 +253,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               moveToBranch(socket, order['id'] ?? '');
                             }
 
-                            bool stopEmitting = false;
-
-                            void onAnyError(event, data) {
-                              if (data is Map && data.containsKey('message')) {
-                                if (data['message'].toString().contains('Not authorized to update location for this order')) {
-                                  print('[OrderScreen] Stopping location emission for order ${order['id']} due to authorization error.');
-                                  stopEmitting = true;
-                                }
-                              }
-                              if (data is Map && data.containsKey('error')) {
-                                if (data['error'].toString().contains('Not authorized to update location for this order')) {
-                                  print('[OrderScreen] Stopping location emission for order ${order['id']} due to authorization error.');
-                                  stopEmitting = true;
-                                }
-                              }
-                            }
-                            socket.onAny(onAnyError);
-
-                            Future<void> sendLocationPeriodically() async {
-                              while (socket.connected && !stopEmitting) {
-                                try {
-                                  final pos = await _getCurrentLocation();
-                                  sendLocationUpdate(
-                                    socket,
-                                    order['id'] ?? '',
-                                    pos.latitude,
-                                    pos.longitude,
-                                  );
-                                } catch (e) {
-                                  print('[OrderScreen] Location send error: $e');
-                                }
-                                await Future.delayed(const Duration(seconds: 2));
-                              }
-                              socket.offAny(onAnyError);
-                            }
-
-                            sendLocationPeriodically();
-
-                            // Open Google Maps with branch coordinates
                             final branch = order['branch'] ?? {};
                             final branchLat = branch['lat'] is double
                                 ? branch['lat']
@@ -322,7 +284,67 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         child: ElevatedButton(
                           onPressed: () async {
                             final socket = await WebSocketManager().initializeSocket();
-                            // TODO: Add further logic after connection if needed
+                            final orderId = order['id'] ?? '';
+
+                            LocationPermission permission = await Geolocator.checkPermission();
+                            if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+                              permission = await Geolocator.requestPermission();
+                              if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+                                print("Location permission denied.");
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Location permission denied. Please enable location permissions in settings.'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+                            }
+
+                            Position position;
+                            try {
+                              position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+                            } catch (e) {
+                              print("Error fetching location: $e");
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Location unavailable.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            void startTrackingFlow() {
+                              startDeliveryTracking(socket, orderId, position.latitude, position.longitude);
+
+                              socket.on('delivery_tracking_confirmed', (data) async {
+                                print('[WebSocket] delivery_tracking_confirmed: $data');
+                                // For now, just emit location every 2 seconds (no foreground service)
+                                Timer.periodic(const Duration(seconds: 2), (timer) async {
+                                  if (!mounted) {
+                                    timer.cancel();
+                                    return;
+                                  }
+                                  try {
+                                    final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+                                    sendLocationUpdate(socket, orderId, pos.latitude, pos.longitude);
+                                  } catch (e) {
+                                    print("Error sending location: $e");
+                                  }
+                                });
+                                socket.off('delivery_tracking_confirmed');
+                              });
+                            }
+
+                            if (!socket.connected) {
+                              socket.on('connect', (_) {
+                                startTrackingFlow();
+                                socket.off('connect');
+                              });
+                            } else {
+                              startTrackingFlow();
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,

@@ -23,7 +23,7 @@ class WebSocketManager with WidgetsBindingObserver {
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .setAuth({'token': _jwtToken})
-          .enableReconnection() // Enable built-in reconnection
+          .enableReconnection()
           .setReconnectionAttempts(9999)
           .setReconnectionDelay(2000)
           .build(),
@@ -34,36 +34,59 @@ class WebSocketManager with WidgetsBindingObserver {
     });
     _socket!.onConnectError((err) {
       print('[WebSocket] Connect error: $err');
-      // No manual reconnect needed, socket.io handles it
+      if (err != null) {
+        print('[WebSocket] Connect error details: ${err.toString()}');
+      }
     });
     _socket!.onError((err) {
+
       print('[WebSocket] General error: $err');
-      // No manual reconnect needed, socket.io handles it
+      if (err != null) {
+        print('[WebSocket] General error details: ${err.toString()}');
+      }
     });
     _socket!.onDisconnect((_) {
       print('[WebSocket] Disconnected');
-      // No manual reconnect needed, socket.io handles it
     });
 
     // --- RECEIVE EVENTS ---
     _socket!.on("delivery_tracking_confirmed", (data) {
       print('[WebSocket] delivery_tracking_confirmed: $data');
+      if (data is Map && data.containsKey('error')) {
+        print('[WebSocket] delivery_tracking_confirmed error: ${data['error']}');
+      }
     });
 
     _socket!.on("order_out_for_delivery_by_rider", (data) {
       print('[WebSocket] order_out_for_delivery_by_rider: $data');
+      if (data is Map && data.containsKey('error')) {
+        print('[WebSocket] order_out_for_delivery_by_rider error: ${data['error']}');
+      }
     });
 
     _socket!.on("route_calculated", (data) {
       print('[WebSocket] route_calculated: $data');
+      if (data is Map && data.containsKey('error')) {
+        print('[WebSocket] route_calculated error: ${data['error']}');
+      }
     });
 
     _socket!.on("route_updated", (data) {
       print('[WebSocket] route_updated: $data');
+      if (data is Map && data.containsKey('error')) {
+        print('[WebSocket] route_updated error: ${data['error']}');
+      }
     });
 
     _socket!.on("route_tracking_data", (data) {
       print('[WebSocket] route_tracking_data: $data');
+      if (data is Map && data.containsKey('error')) {
+        print('[WebSocket] route_tracking_data error: ${data['error']}');
+      }
+    });
+
+    _socket!.on("error", (data) {
+      print('[WebSocket] Received error event: $data');
     });
 
     WidgetsBinding.instance.addObserver(this);
@@ -78,16 +101,13 @@ class WebSocketManager with WidgetsBindingObserver {
     if (_socket == null) return;
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       print('[WebSocket] App in background, keeping socket alive');
-      // No disconnect, let socket.io handle reconnection
     } else if (state == AppLifecycleState.resumed) {
       print('[WebSocket] App resumed');
-      // No disconnect, let socket.io handle reconnection
     }
   }
 
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Do not disconnect socket here, keep it alive
   }
 }
 

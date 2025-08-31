@@ -91,6 +91,7 @@ class ApiCall {
         if (token != null && token.isNotEmpty) {
           headers['Authorization'] = 'Bearer $token';
           print("[PUT] Authenticated with token");
+          print('Token $token');
         } else {
           print("[PUT] No token found for auth");
         }
@@ -160,6 +161,7 @@ class ApiCall {
         if (token != null && token.isNotEmpty) {
           headers['Authorization'] = 'Bearer $token';
           print("[GET] Authenticated with token");
+          print('Token $token');
         } else {
           print("[GET] No token found for auth");
         }
@@ -213,6 +215,7 @@ class ApiCall {
         if (token != null && token.isNotEmpty) {
           headers['Authorization'] = 'Bearer $token';
           print("[DELETE] Authenticated with token");
+          print('Token $token');
         } else {
           print("[DELETE] No token found for auth");
         }

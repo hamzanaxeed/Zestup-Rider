@@ -334,6 +334,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                   }
                                 });
                                 socket.off('delivery_tracking_confirmed');
+
+                                // Open Google Maps for address location after confirmation
+                                final address = order['address'] ?? {};
+                                final addressLat = address['lat'] is double
+                                    ? address['lat']
+                                    : address['lat'] != null
+                                        ? double.tryParse(address['lat'].toString()) ?? 0.0
+                                        : 0.0;
+                                final addressLon = address['lon'] is double
+                                    ? address['lon']
+                                    : address['lon'] != null
+                                        ? double.tryParse(address['lon'].toString()) ?? 0.0
+                                        : 0.0;
+                                await openGoogleMaps(addressLat, addressLon);
                               });
                             }
 

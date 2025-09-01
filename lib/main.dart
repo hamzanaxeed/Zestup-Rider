@@ -9,6 +9,11 @@ import 'views/home_Screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'Notifications.dart'; // <-- Add this import
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_background_service_android/flutter_background_service_android.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:async';
+import 'dart:io';
 
 // Handle background messages
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -20,6 +25,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeService(); // <-- Add this line
 
   // Fetch Firebase config from backend
   const String configUrl = "https://zestupbackend-59oze.sevalla.app/api/application-info/rider/firebase-config";
@@ -62,6 +68,61 @@ void main() async {
   await Notifications.initialize();
 
   runApp(const MyApp());
+}
+
+// Add this function for background service initialization
+Future<void> initializeService() async {
+  final service = FlutterBackgroundService();
+
+  await service.configure(
+    androidConfiguration: AndroidConfiguration(
+      onStart: onStart,
+      isForegroundMode: true,
+      autoStart: true,
+    ),
+    iosConfiguration: IosConfiguration(
+      onForeground: onStart,
+      onBackground: onIosBackground,
+    ),
+  );
+}
+
+// iOS background handler (must be top-level)
+@pragma('vm:entry-point')
+bool onIosBackground(ServiceInstance service) {
+  WidgetsFlutterBinding.ensureInitialized();
+  return true;
+}
+
+@pragma('vm:entry-point')
+void onStart(ServiceInstance service) {
+  if (service is AndroidServiceInstance) {
+    service.setForegroundNotificationInfo(
+      title: "Rider Tracking",
+      content: "Your location is being shared...",
+    );
+  }
+
+  // Example: Keep WebSocket connection alive (replace with your logic)
+  // You may want to use socket_io_client or dart:io WebSocket here
+  WebSocket.connect('wss://zestupbackend-59oze.sevalla.app').then((socket) {
+    Timer.periodic(const Duration(seconds: 5), (timer) {
+      socket.add("ping from background");
+    });
+  }).catchError((e) {
+    print('[BackgroundService] WebSocket error: $e');
+  });
+
+  // Track location and send updates
+  Timer.periodic(const Duration(seconds: 10), (timer) async {
+    try {
+      Position position = await Geolocator.getCurrentPosition();
+      print("[BackgroundService] Current Location: ${position.latitude}, ${position.longitude}");
+      // TODO: Send to your server via WebSocket or API
+    } catch (e) {
+      print("[BackgroundService] Location error: $e");
+    }
+  });
 }
 
 class MyApp extends StatelessWidget {

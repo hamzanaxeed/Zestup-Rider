@@ -39,7 +39,6 @@ class WebSocketManager with WidgetsBindingObserver {
       }
     });
     _socket!.onError((err) {
-
       print('[WebSocket] General error: $err');
       if (err != null) {
         print('[WebSocket] General error details: ${err.toString()}');

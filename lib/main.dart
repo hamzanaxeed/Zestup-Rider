@@ -25,11 +25,29 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeService(); // <-- Add this line
 
-  // Fetch Firebase config from backend
+  // Ensure location permission is granted before starting background service
+  LocationPermission permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      print('[Main] Location permission not granted. Exiting app initialization.');
+      // Optionally show a dialog or exit app
+      runApp(const MyApp()); // Still run app, but background service won't start
+      return;
+    }
+  }
+
+  await initializeService();
+
+  // Fetch Firebase config from backend with timeout
   const String configUrl = "https://zestupbackend-59oze.sevalla.app/api/application-info/rider/firebase-config";
-  final configResp = await http.get(Uri.parse(configUrl));
+  final configResp = await http
+      .get(Uri.parse(configUrl))
+      .timeout(const Duration(seconds: 10), onTimeout: () {
+    throw Exception('Firebase config request timed out');
+  });
+
   if (configResp.statusCode == 200) {
     final configJson = jsonDecode(configResp.body);
     print('[Firebase Config] $configJson');
@@ -48,29 +66,34 @@ void main() async {
     final storageBucket = data['project_info']['storage_bucket'];
     print('[Firebase Storage Bucket] $storageBucket');
 
-    await Firebase.initializeApp(
-      options: FirebaseOptions(
-        apiKey: apiKey,
-        appId: appId,
-        messagingSenderId: messagingSenderId,
-        projectId: projectId,
-        storageBucket: storageBucket,
-      ),
-    );
+    try {
+      await Firebase.initializeApp(
+        options: FirebaseOptions(
+          apiKey: apiKey,
+          appId: appId,
+          messagingSenderId: messagingSenderId,
+          projectId: projectId,
+          storageBucket: storageBucket,
+        ),
+      );
+    } catch (e) {
+      print('[Firebase Init Error] $e');
+    }
   } else {
-    // Handle error or fallback to default config if needed
     throw Exception('Failed to load Firebase config');
   }
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Initialize notifications setup
-  await Notifications.initialize();
+  await Notifications.initialize().timeout(const Duration(seconds: 10), onTimeout: () {
+    print('[Notifications] Initialization timed out');
+  });
+
+  print('working fine till here');
 
   runApp(const MyApp());
 }
 
-// Add this function for background service initialization
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
 
@@ -85,6 +108,8 @@ Future<void> initializeService() async {
       onBackground: onIosBackground,
     ),
   );
+
+  await service.startService();
 }
 
 // iOS background handler (must be top-level)
@@ -94,8 +119,11 @@ bool onIosBackground(ServiceInstance service) {
   return true;
 }
 
+// Annotate onStart for native entry point
 @pragma('vm:entry-point')
-void onStart(ServiceInstance service) {
+void onStart(ServiceInstance service) async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   if (service is AndroidServiceInstance) {
     service.setForegroundNotificationInfo(
       title: "Rider Tracking",
@@ -103,22 +131,30 @@ void onStart(ServiceInstance service) {
     );
   }
 
-  // Example: Keep WebSocket connection alive (replace with your logic)
-  // You may want to use socket_io_client or dart:io WebSocket here
-  WebSocket.connect('wss://zestupbackend-59oze.sevalla.app').then((socket) {
-    Timer.periodic(const Duration(seconds: 5), (timer) {
-      socket.add("ping from background");
-    });
-  }).catchError((e) {
-    print('[BackgroundService] WebSocket error: $e');
-  });
-
-  // Track location and send updates
+  // Only emit location if tracking is enabled (set by UI)
   Timer.periodic(const Duration(seconds: 10), (timer) async {
+    final prefs = await SharedPreferences.getInstance();
+    final isTracking = prefs.getBool('is_tracking') ?? false;
+    final orderId = prefs.getString('tracking_order_id') ?? '';
+    if (!isTracking || orderId.isEmpty) return;
+
     try {
       Position position = await Geolocator.getCurrentPosition();
       print("[BackgroundService] Current Location: ${position.latitude}, ${position.longitude}");
-      // TODO: Send to your server via WebSocket or API
+
+      // Send location via WebSocket
+      WebSocket.connect('wss://zestupbackend-59oze.sevalla.app').then((socket) {
+        final payload = jsonEncode({
+          "orderId": orderId,
+          "latitude": position.latitude,
+          "longitude": position.longitude,
+          "timestamp": DateTime.now().toIso8601String(),
+        });
+        socket.add(payload);
+        socket.close();
+      }).catchError((e) {
+        print('[BackgroundService] WebSocket error: $e');
+      });
     } catch (e) {
       print("[BackgroundService] Location error: $e");
     }

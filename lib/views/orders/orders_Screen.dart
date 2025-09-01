@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../Models/order_Model.dart';
 import '../../helpers/Apicall.dart';
 import '../../views/Tracking/websockets.dart';
@@ -350,6 +351,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                 await openGoogleMaps(addressLat, addressLon);
                               });
                             }
+
+                            // Enable background tracking for this order
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setBool('is_tracking', true);
+                            await prefs.setString('tracking_order_id', orderId);
 
                             if (!socket.connected) {
                               socket.on('connect', (_) {

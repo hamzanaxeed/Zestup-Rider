@@ -183,15 +183,19 @@ class AuthController {
       "userDeviceId": userDeviceId ?? "",
     });
 
+
     try {
       final response = await http.post(url, headers: headers, body: body);
       print('[LOGOUT] Status: ${response.statusCode}, Body: ${response.body}');
+       print('yes');
 
       if (response.statusCode == 204) {
         await prefs.clear();
         showSuccessSnackbar(context, "Logged out successfully.");
         return true;
       } else {
+
+        await prefs.clear();
         showErrorSnackbar(context, "Logout failed. Please try again.");
         return false;
       }
